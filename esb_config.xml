@@ -1,0 +1,70 @@
+<?xml version="1.0" ?>
+<api>
+  <resource methods="POST" uri-template="/PostalCode_to_Address">
+    <inSequence>
+      <sequence key="IncomingLog"/>
+      <script language="js">
+    <![CDATA[
+    for (const item of $input.all()) {
+      const code =$input.first().json.query.code;
+      const postalCodeIsValid=/^\d{10}$/.test(code);
+      return {
+        json: {
+          code,
+          postalCodeIsValid
+        }
+      };
+    }
+    ]]>
+</script>
+      <property name="REST_URL_POSTFIX" scope="axis2" value="/ide/v1/services/postal"/>
+      <property name="HTTP_METHOD" scope="axis2" value="GET"/>
+      <sequence key="OutgoingLog"/>
+      <send>
+        <endpoint>
+          <address uri="https://napi.jibit.ir"/>
+        </endpoint>
+      </send>
+    </inSequence>
+    <outSequence>
+      <sequence key="ResponseLog"/>
+      <filter regex="true" source="$axis2:postalCodeIsValid">
+        <then>
+          <payloadFactory media-type="json">
+            <format>{ "meta": "$1", "result": "$2", "status": "$3" }</format>
+            <args>
+              <arg evaluator="json" expression="$.toJsonString()"/>
+            </args>
+          </payloadFactory>
+        </then>
+        <else>
+          <script language="js">
+    <![CDATA[
+    return items.map(item => {
+      const message=JSON.parse(item.json.error.message.substring(6));
+      const error=JSON.parse(message);
+      return {
+        json: {
+          error
+        }
+      };
+    });
+    ]]>
+</script>
+        </else>
+      </filter>
+      <sequence key="RespondLog"/>
+      <respond/>
+      <payloadFactory media-type="json">
+        <format>{ "meta": "$1", "result": "$2" }</format>
+        <args>
+          <arg evaluator="xml" expression="$ctx:error.code"/>
+          <arg evaluator="xml" expression="$ctx:error.message"/>
+        </args>
+      </payloadFactory>
+    </outSequence>
+    <faultSequence>
+      <sequence key="DoorsoaDefaultFault"/>
+    </faultSequence>
+  </resource>
+</api>

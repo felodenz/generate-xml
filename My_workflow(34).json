@@ -1,0 +1,243 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "for (const item of $input.all()) {\n  const code =$input.first().json.query.code;\n  const postalCodeIsValid=/^\\d{10}$/.test(code);\n  return {\n    json: {\n      code,\n      postalCodeIsValid\n    }\n  };\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        320
+      ],
+      "id": "53fb72b0-f4ae-4d05-a8c3-37dd4b82f24d",
+      "name": "Code",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "url": "https://napi.jibit.ir/ide/v1/services/postal",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "code",
+              "value": "={{ $json.code }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJhdWQiOiJpZGVudGljYXRvciIsInN1YiI6ImE1cEc5IiwiYWNjZXNzIjp0cnVlLCJpc3MiOiJodHRwczovL2ppYml0LmlyIiwiZXhwIjoxNzM3NjE3OTg3fQ.O0zqrU0jp8QqREnCG1S8IHhh-sZtvYCs1Ha5s_EIhUGfJ4up93AI1a-RcLaxCnl7a8VEFIkj6iHLb4SDdVF7HQ"
+            }
+          ]
+        },
+        "options": {
+          "redirect": {
+            "redirect": {}
+          },
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        820,
+        320
+      ],
+      "id": "95eb9bcd-bc4b-497b-a3a8-07673b3be9ed",
+      "name": "HTTP Request",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n    \"meta\": {\n      \"transactionId\": \"xx\"\n    },\n    \"result\": {\n      \"data\": \"{{ $json.body.toJsonString() }}\"\n    },\n    \"status\": {\n      \"code\": \"100000\",\n      \"message\": \"Success\"\n    }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1320,
+        200
+      ],
+      "id": "ed1dcdbf-72b5-417f-bb2d-561d75c93eac",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a4c31b55-4a65-4cbb-abed-e9a1da3dc2a5",
+              "leftValue": "='{{ $('Code').item.json.postalCodeIsValid }}'",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "a6528cf9-3d14-42d4-bb10-f4888485c299",
+              "leftValue": "='{{ $json.statusCode }}'",
+              "rightValue": "200",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1040,
+        320
+      ],
+      "id": "20f4b1e7-ef84-4d0a-8ee7-d4f536259677",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  const message=JSON.parse(item.json.error.message.substring(6));\n  const error=JSON.parse(message);\n  return {\n    json: {\n      error\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1260,
+        380
+      ],
+      "id": "660e94c0-d8f5-4d44-b49f-9e3de569d397",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"meta\": {\n    \"transactionId\": \"xxx\"\n  },\n  \"result\": {\n    \"data\": null,\n    \"status\": {\n      \"code\": \"{{ $json.error.code }}\",\n      \"message\": \"{{ $json.error.message }}\"\n    }\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1480,
+        380
+      ],
+      "id": "ea189866-8465-4bdb-b56b-7c4290e9c1bd",
+      "name": "Respond to Webhook2",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "PostalCode_to_Address",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        380,
+        320
+      ],
+      "id": "a25c3c15-a150-4742-bfa2-05e4bdf5560e",
+      "name": "Webhook",
+      "webhookId": "9ebe3d3e-2c6e-486f-8da7-c242d3efd47a"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ed0eef1f-4249-40c1-9ae6-97dcac9c7b2e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "2fd5f0e174a9dad27edfa5b49b732cb112f641af49fc3f31f7a17084bb2e7524"
+  },
+  "id": "2nuCiKzsQlq7zrho",
+  "tags": []
+}
